@@ -35,7 +35,7 @@ void setup() {
   Serial.println("════════════════════════════════════════");
   Serial.printf("System ready! [Format: %s] [Hopping: %s]\n", 
                 SAVE_AS_PCAP ? "PCAP" : "CSV",
-                ENABLE_CHANNEL_HOPPING ? "ON" : "OFF");
+                ENABLE_CHANNEL_HOPPING ? "ON" : "OFF"); 
   Serial.println("════════════════════════════════════════\n");
 }
 
