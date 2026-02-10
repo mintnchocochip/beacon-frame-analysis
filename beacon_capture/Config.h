@@ -6,8 +6,8 @@
 // === CONFIGURATION SETTINGS ===
 
 // File Format Selection
-#define SAVE_AS_PCAP true
-#define SAVE_AS_CSV  false
+#define SAVE_AS_PCAP false
+#define SAVE_AS_CSV  true
 
 // Channel Hopping Settings
 #define ENABLE_CHANNEL_HOPPING true

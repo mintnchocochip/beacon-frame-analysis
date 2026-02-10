@@ -5,6 +5,7 @@
 #include "Config.h"
 
 // Parse beacon frame and print details to Serial
-void parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr, int packet_len);
+// Parse beacon frame and return CSV data string
+String parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr, int packet_len, int rssi, int channel);
 
 #endif

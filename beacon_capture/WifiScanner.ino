@@ -55,41 +55,8 @@ void IRAM_ATTR wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type
   Serial.printf("RSSI: %d dBm\n", rssi);
   Serial.printf("Capture Time: %lu ms\n", millis());
   
-  // Parse detailed beacon information
-  parse_beacon_frame(payload, hdr, packet_len);
-  
-  // Construct CSV Data string (only if needed)
-  String csvData = "";
-  if (SAVE_AS_CSV && sdCardReady) {
-    // Basic fields: Timestamp,SSID,BSSID,RSSI,Channel,Length
-    csvData += String(millis()) + ",";
-    csvData += String(ssid) + ",";
-    
-    char bssidStr[18];
-    snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
-             hdr->bssid[0], hdr->bssid[1], hdr->bssid[2],
-             hdr->bssid[3], hdr->bssid[4], hdr->bssid[5]);
-    csvData += String(bssidStr) + ",";
-    csvData += String(rssi) + ",";
-    csvData += String(channel) + ","; 
-    csvData += String(packet_len) + ",";
-    
-    // OUI
-    char ouiStr[9];
-    snprintf(ouiStr, sizeof(ouiStr), "%02X:%02X:%02X", 
-             hdr->bssid[0], hdr->bssid[1], hdr->bssid[2]);
-    csvData += String(ouiStr) + ",";
-    
-    // Encryption (Duplicate logic for CSV - simplified)
-    // We could optimize this by modifying parse_beacon_frame to return it, 
-    // but for now, we'll just check privacy bit since full RSN parsing is complex to duplicate
-    uint16_t capability;
-    memcpy(&capability, payload + 10, 2);
-    bool privacy = capability & 0x0010;
-    csvData += (privacy ? "Encrypted" : "Open");
-    
-    csvData += "\n";
-  }
+  // Parse detailed beacon information and get CSV string
+  String csvData = parse_beacon_frame(payload, hdr, packet_len, rssi, channel);
 
   // Save parsed data/packet
   if (sdCardReady) {

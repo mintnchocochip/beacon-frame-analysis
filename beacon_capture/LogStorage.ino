@@ -96,7 +96,7 @@ bool create_log_file() {
     
   } else if (SAVE_AS_CSV) {
     // Write CSV Header
-    String header = "Timestamp_ms,SSID,BSSID,RSSI,Channel,Length,OUI,Encryption\n";
+    String header = "Timestamp_ms,SSID,BSSID,RSSI,Channel,SequenceNumber,Encryption,RateCount,OUI,FrameLength\n";
     size_t written = captureFile.print(header);
     if (written == 0) {
       Serial.println("ERROR: Failed to write CSV header!");
