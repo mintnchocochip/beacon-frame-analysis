@@ -18,50 +18,13 @@ String parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr,
   memcpy(&capability, payload + 10, 2);
   
   // Extract capability flags
-  bool privacy = capability & 0x0010;          // Bit 4: Privacy (WEP/WPA)
-  bool short_preamble = capability & 0x0020;   // Bit 5: Short Preamble
-  bool pbcc = capability & 0x0040;             // Bit 6: PBCC
-  bool channel_agility = capability & 0x0080;  // Bit 7: Channel Agility
-  bool spectrum_mgmt = capability & 0x0100;    // Bit 8: Spectrum Management
-  bool qos = capability & 0x0200;              // Bit 9: QoS
-  bool short_slot = capability & 0x0400;       // Bit 10: Short Slot Time
-  bool apsd = capability & 0x0800;             // Bit 11: APSD
-  bool radio_measurement = capability & 0x1000; // Bit 12: Radio Measurement
+  bool privacy = capability & 0x0010;  // Bit 4: Privacy (WEP/WPA)
   
   // 4. Sequence Number (from MAC header)
   uint16_t seq_ctrl = (hdr->seq_ctrl[1] << 8) | hdr->seq_ctrl[0];
   uint16_t seq_num = (seq_ctrl >> 4) & 0x0FFF;  // Bits 4-15
-  uint16_t frag_num = seq_ctrl & 0x000F;        // Bits 0-3
-  
-  // 5. OUI (Organizationally Unique Identifier - first 3 bytes of BSSID)
-  uint32_t oui = (hdr->bssid[0] << 16) | (hdr->bssid[1] << 8) | hdr->bssid[2];
-  
-  // Print fixed parameters
-  Serial.println("--- Fixed Parameters ---");
-  Serial.printf("Beacon Interval: %d TU (%d ms)\n", 
-                beacon_interval, (beacon_interval * 1024) / 1000);
-  Serial.printf("Sequence Number: %d (Fragment: %d)\n", seq_num, frag_num);
-  Serial.printf("OUI: %02X:%02X:%02X ", hdr->bssid[0], hdr->bssid[1], hdr->bssid[2]);
-  
-  // OUI vendor lookup (common ones)
-  if (oui == 0x001018 || oui == 0x7C5049 || oui == 0x001CB3) Serial.print("(Broadcom)");
-  else if (oui == 0xB0C090 || oui == 0xF46D04) Serial.print("(Realtek)");
-  else if (oui == 0xDC9FDB || oui == 0x0023DF) Serial.print("(Ubiquiti)");
-  else if (oui == 0x001DD8 || oui == 0x001E52) Serial.print("(Cisco)");
-  else if (oui == 0x0050F2) Serial.print("(Microsoft)");
-  else if (oui == 0x8C8590 || oui == 0x001FF3) Serial.print("(TP-Link)");
-  else Serial.print("(Unknown)");
-  Serial.println();
-  
-  // Print capability flags
-  Serial.println("--- Capability Flags ---");
-  Serial.printf("Privacy (Encryption): %s\n", privacy ? "Yes" : "No");
-  Serial.printf("Spectrum Management: %s\n", spectrum_mgmt ? "Yes" : "No");
-  Serial.printf("QoS: %s\n", qos ? "Yes" : "No");
-  Serial.printf("Short Slot Time: %s\n", short_slot ? "Yes" : "No");
   
   // === TAGGED PARAMETERS (Information Elements) ===
-  Serial.println("--- Tagged Parameters ---");
   
   // Start after fixed parameters (12 bytes)
   uint8_t *tag_ptr = payload + 12;
@@ -111,13 +74,13 @@ String parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr,
     // Tag 1: Supported Rates
     if (tag_number == 1 && !found_rates) {
       found_rates = true;
-      Serial.print("Supported Rates: ");
+      DEBUG_PRINT("Supported Rates: ");
       for (int i = 0; i < tag_length; i++) {
         float rate = (tag_data[i] & 0x7F) * 0.5; // Remove MSB, multiply by 0.5
-        Serial.printf("%.1f%s ", rate, (tag_data[i] & 0x80) ? "*" : "");
+        DEBUG_PRINTF("%.1f%s ", rate, (tag_data[i] & 0x80) ? "*" : "");
         rate_count++;
       }
-      Serial.println("Mbps (* = basic rate)");
+      DEBUG_PRINTLN("Mbps (* = basic rate)");
     }
     
     // Tag 48: RSN Information (WPA2/WPA3)
@@ -152,7 +115,7 @@ String parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr,
         uint32_t vendor_oui = (tag_data[0] << 16) | (tag_data[1] << 8) | tag_data[2];
         uint8_t vendor_type = tag_data[3];
         
-        Serial.printf("Vendor Tag: OUI=%02X:%02X:%02X, Type=%02X\n",
+        DEBUG_PRINTF("Vendor Tag: OUI=%02X:%02X:%02X, Type=%02X\n",
                       tag_data[0], tag_data[1], tag_data[2], vendor_type);
         
         // Check for common vendor types
@@ -170,32 +133,25 @@ String parse_beacon_frame(uint8_t *payload, const wifi_ieee80211_mac_hdr_t *hdr,
     remaining -= (2 + tag_length);
   }
   
-  Serial.printf("Encryption Type: %s\n", encryption);
+  DEBUG_PRINTF("Encryption Type: %s\n", encryption);
   
-  // Construct CSV Line
+  // Construct CSV Line efficiently using snprintf
   // Header: Timestamp_ms,SSID,BSSID,RSSI,Channel,SequenceNumber,Encryption,RateCount,OUI,FrameLength
   
-  csvLine += String(millis()) + ",";
-  csvLine += String(ssid) + ",";
-  
-  char bssidStr[18];
-  snprintf(bssidStr, sizeof(bssidStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+  char csvBuffer[512];
+  snprintf(csvBuffer, sizeof(csvBuffer), 
+           "%lu,%s,%02X:%02X:%02X:%02X:%02X:%02X,%d,%d,%d,%s,%d,%02X:%02X:%02X,%d\n",
+           millis(),
+           ssid,
+           hdr->bssid[0], hdr->bssid[1], hdr->bssid[2], hdr->bssid[3], hdr->bssid[4], hdr->bssid[5],
+           rssi,
+           channel,
+           seq_num,
+           encryption,
+           rate_count,
            hdr->bssid[0], hdr->bssid[1], hdr->bssid[2],
-           hdr->bssid[3], hdr->bssid[4], hdr->bssid[5]);
-  csvLine += String(bssidStr) + ",";
+           packet_len
+  );
   
-  csvLine += String(rssi) + ",";
-  csvLine += String(channel) + ",";
-  csvLine += String(seq_num) + ",";
-  csvLine += String(encryption) + ",";
-  csvLine += String(rate_count) + ",";
-  
-  char ouiStr[9];
-  snprintf(ouiStr, sizeof(ouiStr), "%02X:%02X:%02X", 
-           hdr->bssid[0], hdr->bssid[1], hdr->bssid[2]);
-  csvLine += String(ouiStr) + ",";
-  
-  csvLine += String(packet_len) + "\n";
-  
-  return csvLine;
+  return String(csvBuffer);
 }

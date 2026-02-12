@@ -46,14 +46,14 @@ void IRAM_ATTR wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type
   }
   
   // Print the basic beacon frame information
-  Serial.println("========== BEACON FRAME ==========");
-  Serial.printf("SSID: %s\n", strlen(ssid) > 0 ? ssid : "<Hidden SSID>");
-  Serial.printf("BSSID: %02X:%02X:%02X:%02X:%02X:%02X\n",
+  DEBUG_PRINTLN("========== BEACON FRAME ==========");
+  DEBUG_PRINTF("SSID: %s\n", strlen(ssid) > 0 ? ssid : "<Hidden SSID>");
+  DEBUG_PRINTF("BSSID: %02X:%02X:%02X:%02X:%02X:%02X\n",
                 hdr->bssid[0], hdr->bssid[1], hdr->bssid[2],
                 hdr->bssid[3], hdr->bssid[4], hdr->bssid[5]);
-  Serial.printf("Channel: %d\n", channel);
-  Serial.printf("RSSI: %d dBm\n", rssi);
-  Serial.printf("Capture Time: %lu ms\n", millis());
+  DEBUG_PRINTF("Channel: %d\n", channel);
+  DEBUG_PRINTF("RSSI: %d dBm\n", rssi);
+  DEBUG_PRINTF("Capture Time: %lu ms\n", millis());
   
   // Parse detailed beacon information and get CSV string
   String csvData = parse_beacon_frame(payload, hdr, packet_len, rssi, channel);
@@ -64,22 +64,22 @@ void IRAM_ATTR wifi_sniffer_packet_handler(void* buff, wifi_promiscuous_pkt_type
     uint8_t *raw_frame = (uint8_t *)ppkt->payload;
     
     if (save_packet(raw_frame, packet_len, csvData)) {
-      Serial.printf("✓ Saved [Packet #%u, File: %s]\n", packetCount, filename);
+      DEBUG_PRINTF("✓ Saved [Packet #%u, File: %s]\n", packetCount, filename);
       // Blink LED
       digitalWrite(LED_PIN, HIGH);
       delayMicroseconds(500); // Very short blink
       digitalWrite(LED_PIN, LOW);
       
       if (packetCount % 10 == 0) {
-        Serial.printf(">>> Captured: %u | Size: %.2f MB <<<\n", 
+        DEBUG_PRINTF(">>> Captured: %u | Size: %.2f MB <<<\n", 
                       packetCount, currentFileSize / 1024.0 / 1024.0);
       }
     } else {
-      Serial.println("✗ Save Failed!");
+      DEBUG_PRINTLN("✗ Save Failed!");
     }
   }
   
-  Serial.println("==================================\n");
+  DEBUG_PRINTLN("==================================\n");
 }
 
 void initialize_wifi() {

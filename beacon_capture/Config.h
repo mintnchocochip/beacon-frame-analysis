@@ -5,6 +5,19 @@
 
 // === CONFIGURATION SETTINGS ===
 
+// Debug Control - Set to false to reduce compilation memory usage
+#define DEBUG_MODE true
+
+#if DEBUG_MODE
+  #define DEBUG_PRINT(x) Serial.print(x)
+  #define DEBUG_PRINTLN(x) Serial.println(x)
+  #define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#else
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)
+  #define DEBUG_PRINTF(...)
+#endif
+
 // File Format Selection
 #define SAVE_AS_PCAP false
 #define SAVE_AS_CSV  true
