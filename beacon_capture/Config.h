@@ -29,11 +29,18 @@
 // Status LED Settings
 #define LED_PIN 2
 
+// Reset Button Settings
+#define RESET_BUTTON_PIN 0  // GPIO 0 (BOOT button on most ESP32 boards)
+#define BUTTON_DEBOUNCE_MS 50
+
 // SD Card Pin Definitions
 #define SD_CS_PIN 5
 #define SD_MOSI_PIN 23
 #define SD_MISO_PIN 19
 #define SD_SCK_PIN 18
+
+// Capture Folder Settings
+#define CAPTURES_BASE_FOLDER "/captures"
 
 // Initial Channel
 #define WIFI_CHANNEL 1

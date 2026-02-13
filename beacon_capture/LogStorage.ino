@@ -5,7 +5,9 @@ File captureFile;
 uint32_t packetCount = 0;
 uint32_t currentFileSize = 0;
 uint8_t fileIndex = 0;
-char filename[32];
+uint16_t sessionNumber = 1;
+char filename[64];
+char sessionFolder[48];
 bool sdCardReady = false;
 
 // Initialize SD card
@@ -43,8 +45,45 @@ bool initialize_sd_card() {
   Serial.printf("SD Card Size: %llu MB\n", cardSize);
   Serial.printf("Free Space: %llu MB\n", SD.totalBytes() / (1024 * 1024) - SD.usedBytes() / (1024 * 1024));
   
-  Serial.println("SD card initialized successfully!\n");
+  Serial.println("SD card initialized successfully!");
+  
+  // Create base captures folder if it doesn't exist
+  if (!SD.exists(CAPTURES_BASE_FOLDER)) {
+    if (SD.mkdir(CAPTURES_BASE_FOLDER)) {
+      Serial.printf("Created base folder: %s\n", CAPTURES_BASE_FOLDER);
+    } else {
+      Serial.println("WARNING: Failed to create base folder!");
+    }
+  }
+  
+  Serial.println();
   return true;
+}
+
+// Create a new session folder
+bool create_session_folder() {
+  // Find next available session number
+  while (true) {
+    snprintf(sessionFolder, sizeof(sessionFolder), "%s/session_%03d", CAPTURES_BASE_FOLDER, sessionNumber);
+    if (!SD.exists(sessionFolder)) {
+      break; // Found an unused session number
+    }
+    sessionNumber++;
+    if (sessionNumber > 999) {
+      Serial.println("ERROR: Maximum session number reached!");
+      return false;
+    }
+  }
+  
+  // Create the session folder
+  if (SD.mkdir(sessionFolder)) {
+    Serial.printf("Created session folder: %s\n", sessionFolder);
+    fileIndex = 0; // Reset file index for new session
+    return true;
+  } else {
+    Serial.println("ERROR: Failed to create session folder!");
+    return false;
+  }
 }
 
 // Create a new Log file (PCAP or CSV)
@@ -55,11 +94,11 @@ bool create_log_file() {
     Serial.printf("Closed previous file. Total packets: %u\n", packetCount);
   }
   
-  // Generate filename with index based on format
+  // Generate filename with index based on format (inside session folder)
   if (SAVE_AS_PCAP) {
-    snprintf(filename, sizeof(filename), "/beacon_%03d.pcap", fileIndex);
+    snprintf(filename, sizeof(filename), "%s/beacon_%03d.pcap", sessionFolder, fileIndex);
   } else {
-    snprintf(filename, sizeof(filename), "/beacon_%03d.csv", fileIndex);
+    snprintf(filename, sizeof(filename), "%s/beacon_%03d.csv", sessionFolder, fileIndex);
   }
   fileIndex++;
   
@@ -107,8 +146,30 @@ bool create_log_file() {
   }
   
   packetCount = 0;
-  Serial.println("Log file created successfully.\n");
+  
+  // Verify file is actually open
+  if (!captureFile) {
+    Serial.println("ERROR: File created but not open!");
+    return false;
+  }
+  
+  Serial.println("Log file created successfully.");
+  Serial.printf("File status: %s, Size: %u bytes\n", 
+                captureFile ? "OPEN" : "CLOSED", 
+                currentFileSize);
+  Serial.println();
   return true;
+}
+
+// Flush and close current file
+void flush_and_close_file() {
+  if (captureFile) {
+    Serial.println("Flushing and closing current file...");
+    captureFile.flush();
+    captureFile.close();
+    Serial.printf("File closed. Total packets captured: %u\n", packetCount);
+    Serial.printf("File size: %.2f KB\n\n", currentFileSize / 1024.0);
+  }
 }
 
 // Write a packet to PCAP file
@@ -140,7 +201,16 @@ bool write_csv_line(String csvLine) {
 
 // General write packet function
 bool save_packet(const uint8_t *raw_packet, uint16_t packet_len, String csvData) {
-  if (!sdCardReady || !captureFile) return false;
+  // Debug: Check SD card status
+  if (!sdCardReady) {
+    DEBUG_PRINTLN("ERROR: sdCardReady is false!");
+    return false;
+  }
+  
+  if (!captureFile) {
+    DEBUG_PRINTLN("ERROR: captureFile is not open!");
+    return false;
+  }
   
   // Check max file size
   if (currentFileSize > MAX_FILE_SIZE) {
@@ -152,16 +222,29 @@ bool save_packet(const uint8_t *raw_packet, uint16_t packet_len, String csvData)
   
   if (SAVE_AS_PCAP) {
     success = write_pcap_packet(raw_packet, packet_len);
-    if (success) currentFileSize += (16 + packet_len);
+    if (success) {
+      currentFileSize += (16 + packet_len);
+      DEBUG_PRINTLN("PCAP packet written successfully");
+    } else {
+      DEBUG_PRINTLN("ERROR: Failed to write PCAP packet!");
+    }
     
   } else if (SAVE_AS_CSV) {
     success = write_csv_line(csvData);
+    if (success) {
+      DEBUG_PRINTLN("CSV line written successfully");
+    } else {
+      DEBUG_PRINTLN("ERROR: Failed to write CSV line!");
+    }
   }
   
   if (success) {
     packetCount++;
-    // Flush every 10 packets
-    if (packetCount % 10 == 0) captureFile.flush();
+    // Flush every 5 packets to ensure data is written to SD card (improved data integrity)
+    if (packetCount % 5 == 0) {
+      captureFile.flush();
+      DEBUG_PRINTLN("File flushed to SD card");
+    }
   }
   
   return success;
