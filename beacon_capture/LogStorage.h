@@ -2,8 +2,7 @@
 #define LOG_STORAGE_H
 
 #include <Arduino.h>
-#include <SD.h>
-#include <SPI.h>
+#include <SD_MMC.h>
 #include "Config.h"
 
 // Global SD card status

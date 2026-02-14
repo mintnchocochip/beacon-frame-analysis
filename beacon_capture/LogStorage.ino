@@ -10,38 +10,36 @@ char filename[64];
 char sessionFolder[48];
 bool sdCardReady = false;
 
-// Initialize SD card
+// Initialize SD card (ESP32-CAM uses SD_MMC, not SPI!)
 bool initialize_sd_card() {
   Serial.println("Initializing SD card...");
+  Serial.println("Using SD_MMC interface (ESP32-CAM built-in slot)");
   
-  // Initialize SPI with custom pins
-  SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+  // ESP32-CAM uses SD_MMC in 1-bit mode
+  // Pins are hardwired: CMD=15, CLK=14, DATA0=2
+  // We don't need to specify pins - they're fixed in hardware
   
-  // Add small delay for SD card to stabilize
-  delay(100);
-  
-  // Try to initialize SD card with lower frequency for better compatibility
-  // Use 4MHz SPI frequency instead of default 40MHz
-  if (!SD.begin(SD_CS_PIN, SPI, 4000000)) {
-    Serial.println("ERROR: SD card initialization failed!");
+  // Try to initialize in 1-bit mode (more reliable than 4-bit for ESP32-CAM)
+  if (!SD_MMC.begin("/sdcard", true)) {  // true = 1-bit mode
+    Serial.println("ERROR: SD_MMC initialization failed in 1-bit mode!");
     Serial.println("Retrying with different settings...");
     delay(500);
     
-    // Second attempt with even lower frequency
-    if (!SD.begin(SD_CS_PIN, SPI, 1000000)) {
+    // Second attempt - try without mount point
+    if (!SD_MMC.begin()) {
       Serial.println("ERROR: SD card initialization failed after retry!");
       Serial.println("Check:");
-      Serial.println("  - SD card is inserted");
+      Serial.println("  - SD card is inserted properly (push until it clicks)");
       Serial.println("  - Card is formatted as FAT32");
-      Serial.println("  - Wiring is correct");
-      Serial.println("  - SD card module is powered with 3.3V");
+      Serial.println("  - Card is 32GB or smaller");
       Serial.println("  - Try a different SD card");
+      Serial.println("  - Ensure good power supply (500mA+)");
       return false;
     }
   }
   
   // Check card type
-  uint8_t cardType = SD.cardType();
+  uint8_t cardType = SD_MMC.cardType();
   if (cardType == CARD_NONE) {
     Serial.println("ERROR: No SD card attached!");
     return false;
@@ -54,15 +52,15 @@ bool initialize_sd_card() {
   else if (cardType == CARD_SDHC) Serial.println("SDHC");
   else Serial.println("UNKNOWN");
   
-  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
   Serial.printf("SD Card Size: %llu MB\n", cardSize);
-  Serial.printf("Free Space: %llu MB\n", SD.totalBytes() / (1024 * 1024) - SD.usedBytes() / (1024 * 1024));
+  Serial.printf("Free Space: %llu MB\n", SD_MMC.totalBytes() / (1024 * 1024) - SD_MMC.usedBytes() / (1024 * 1024));
   
   Serial.println("SD card initialized successfully!");
   
   // Create base captures folder if it doesn't exist
-  if (!SD.exists(CAPTURES_BASE_FOLDER)) {
-    if (SD.mkdir(CAPTURES_BASE_FOLDER)) {
+  if (!SD_MMC.exists(CAPTURES_BASE_FOLDER)) {
+    if (SD_MMC.mkdir(CAPTURES_BASE_FOLDER)) {
       Serial.printf("Created base folder: %s\n", CAPTURES_BASE_FOLDER);
     } else {
       Serial.println("WARNING: Failed to create base folder!");
@@ -78,7 +76,7 @@ bool create_session_folder() {
   // Find next available session number
   while (true) {
     snprintf(sessionFolder, sizeof(sessionFolder), "%s/session_%03d", CAPTURES_BASE_FOLDER, sessionNumber);
-    if (!SD.exists(sessionFolder)) {
+    if (!SD_MMC.exists(sessionFolder)) {
       break; // Found an unused session number
     }
     sessionNumber++;
@@ -89,7 +87,7 @@ bool create_session_folder() {
   }
   
   // Create the session folder
-  if (SD.mkdir(sessionFolder)) {
+  if (SD_MMC.mkdir(sessionFolder)) {
     Serial.printf("Created session folder: %s\n", sessionFolder);
     fileIndex = 0; // Reset file index for new session
     return true;
@@ -118,7 +116,7 @@ bool create_log_file() {
   Serial.printf("Creating new log file: %s\n", filename);
   
   // Open file for writing
-  captureFile = SD.open(filename, FILE_WRITE);
+  captureFile = SD_MMC.open(filename, FILE_WRITE);
   if (!captureFile) {
     Serial.println("ERROR: Failed to create log file!");
     return false;
