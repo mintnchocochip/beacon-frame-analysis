@@ -33,11 +33,11 @@
 #define RESET_BUTTON_PIN 0  // GPIO 0 (BOOT button on most ESP32 boards)
 #define BUTTON_DEBOUNCE_MS 50
 
-// SD Card Pin Definitions
-#define SD_CS_PIN 5
-#define SD_MOSI_PIN 23
-#define SD_MISO_PIN 19
-#define SD_SCK_PIN 18
+// SD Card Pin Definitions (ESP32-CAM Built-in SD Card Slot)
+#define SD_CS_PIN 13
+#define SD_MOSI_PIN 15
+#define SD_MISO_PIN 2
+#define SD_SCK_PIN 14
 
 // Capture Folder Settings
 #define CAPTURES_BASE_FOLDER "/captures"
