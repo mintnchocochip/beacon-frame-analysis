@@ -17,14 +17,27 @@ bool initialize_sd_card() {
   // Initialize SPI with custom pins
   SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
   
-  // Try to initialize SD card
-  if (!SD.begin(SD_CS_PIN)) {
+  // Add small delay for SD card to stabilize
+  delay(100);
+  
+  // Try to initialize SD card with lower frequency for better compatibility
+  // Use 4MHz SPI frequency instead of default 40MHz
+  if (!SD.begin(SD_CS_PIN, SPI, 4000000)) {
     Serial.println("ERROR: SD card initialization failed!");
-    Serial.println("Check:");
-    Serial.println("  - SD card is inserted");
-    Serial.println("  - Card is formatted as FAT32");
-    Serial.println("  - Wiring is correct");
-    return false;
+    Serial.println("Retrying with different settings...");
+    delay(500);
+    
+    // Second attempt with even lower frequency
+    if (!SD.begin(SD_CS_PIN, SPI, 1000000)) {
+      Serial.println("ERROR: SD card initialization failed after retry!");
+      Serial.println("Check:");
+      Serial.println("  - SD card is inserted");
+      Serial.println("  - Card is formatted as FAT32");
+      Serial.println("  - Wiring is correct");
+      Serial.println("  - SD card module is powered with 3.3V");
+      Serial.println("  - Try a different SD card");
+      return false;
+    }
   }
   
   // Check card type
