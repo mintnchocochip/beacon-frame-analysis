@@ -145,8 +145,8 @@ bool create_log_file() {
     currentFileSize += sizeof(pcap_header);
     
   } else if (SAVE_AS_CSV) {
-    // Write CSV Header
-    String header = "Timestamp_ms,SSID,BSSID,RSSI,Channel,SequenceNumber,Encryption,RateCount,OUI,FrameLength\n";
+    // Write CSV Header with all enhanced features
+    String header = "Timestamp_ms,SSID,BSSID,RSSI,Channel,SequenceNumber,BeaconInterval,BeaconTimestamp,Encryption,Privacy,ShortPreamble,ShortSlot,RateCount,SupportedRates,ExtRateCount,DSChannel,CountryCode,HasHT,HTChannelWidth,HTStreams,HasExtCap,OUI,VendorName,IsHidden,FrameLength\n";
     size_t written = captureFile.print(header);
     if (written == 0) {
       Serial.println("ERROR: Failed to write CSV header!");
